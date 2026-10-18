@@ -4,6 +4,18 @@ const path = require("path");
 const cp = require("child_process");
 const root = path.resolve(__dirname, "..");
 const runtime = path.join(root, "runtime");
+function projectConfig() {
+  const packageJson = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+  const configPath = path.join(root, "jupiter.config.json");
+  const config = fs.existsSync(configPath)
+    ? JSON.parse(fs.readFileSync(configPath, "utf8"))
+    : {};
+  const configuredName = config.appName || packageJson.name || "jupiter";
+  const appName = configuredName
+    .replace(/^@[^/]+\//, "")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-");
+  return { appName: appName || "jupiter" };
+}
 function run(command, args, cwd = root) {
   const result = cp.spawnSync(command, args, {
     cwd,
@@ -29,6 +41,7 @@ function doctor() {
   }
 }
 function build() {
+  const { appName } = projectConfig();
   if (!fs.existsSync(path.join(root, "node_modules")))
     run("npm.cmd", ["install"]);
   fs.mkdirSync(runtime, { recursive: true });
@@ -54,6 +67,7 @@ function build() {
       "true",
       "-p:PublishSingleFile=true",
       "-p:IncludeNativeLibrariesForSelfExtract=true",
+      `-p:AssemblyName=${appName}`,
       "-o",
       path.join(root, "dist"),
     ],
@@ -64,23 +78,27 @@ function build() {
     const destination = path.join(root, "dist", directory);
     if (fs.existsSync(source)) fs.cpSync(source, destination, { recursive: true, force: true });
   }
-  const exe = path.join(root, "dist", "Jupiter.exe");
+  const exe = path.join(root, "dist", `${appName}.exe`);
   if (!fs.existsSync(exe))
-    throw new Error("Build completed without dist/Jupiter.exe");
+    throw new Error(`Build completed without dist/${appName}.exe`);
   console.log(`Built ${exe}`);
 }
 function dev() {
   build();
-  console.log("Starting Jupiter development preview with dotnet run...");
+  console.log("Starting Jupiter development preview with dotnet exec...");
+  const developmentAssembly = path.join(
+    runtime,
+    "bin",
+    "Release",
+    "net8.0-windows",
+    "win-x64",
+    "Jupiter.dll",
+  );
   const child = cp.spawn(
     "dotnet",
     [
-      "run",
-      "--project",
-      path.join(runtime, "App.csproj"),
-      "-c",
-      "Release",
-      "--no-restore",
+      "exec",
+      developmentAssembly,
     ],
     { cwd: root, stdio: "inherit", windowsHide: false },
   );
