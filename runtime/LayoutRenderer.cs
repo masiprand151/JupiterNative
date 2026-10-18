@@ -20,9 +20,17 @@ public static class LayoutRenderer
   static readonly Dictionary<TextBox, ScriptObject?> textInputSubmitCallbacks = new();
   static readonly Dictionary<TextBox, ScriptObject?> textInputFocusCallbacks = new();
   static readonly Dictionary<TextBox, ScriptObject?> textInputBlurCallbacks = new();
+  static readonly Dictionary<string, PasswordBox> keyedPasswordInputs = new();
+  static readonly HashSet<PasswordBox> subscribedPasswordInputs = new();
+  static readonly HashSet<PasswordBox> syncingPasswordInputs = new();
+  static readonly Dictionary<PasswordBox, ScriptObject?> passwordInputCallbacks = new();
   static readonly Dictionary<string, Slider> keyedSliders = new();
   static readonly HashSet<Slider> subscribedSliders = new();
   static readonly Dictionary<Slider, ScriptObject?> sliderCallbacks = new();
+  static readonly Dictionary<string, CheckBox> keyedCheckBoxes = new();
+  static readonly Dictionary<string, RadioButton> keyedRadioButtons = new();
+  static readonly Dictionary<string, CheckBox> keyedSwitches = new();
+  static readonly Dictionary<string, DatePicker> keyedDatePickers = new();
 
   public static UIElement Render(object? value, V8ScriptEngine engine)
   {
@@ -46,7 +54,7 @@ public static class LayoutRenderer
     if (type == "RadioButton") return RenderRadioButton(props);
     if (type == "DatePicker") return RenderDatePicker(props);
     if (type == "Image") return RenderImage(props);
-    if (type == "TextInput") return RenderTextInput(props);
+    if (type == "TextInput") return Equals(Get(props, "secureTextEntry"), true) ? RenderPasswordInput(props) : RenderTextInput(props);
     return new TextBlock { Text = $"Unknown Jupiter component: {type}" };
   }
 
@@ -103,13 +111,16 @@ public static class LayoutRenderer
 
   static UIElement RenderScrollView(ScriptObject? props, object? children, V8ScriptEngine engine)
   {
-    var panel = new StackPanel { Orientation = Orientation.Vertical };
-    AddChildren(panel, children, engine, Orientation.Vertical, Number(Get(props, "gap"), 0));
+    var horizontal = Equals(Get(props, "horizontal"), true);
+    var orientation = horizontal ? Orientation.Horizontal : Orientation.Vertical;
+    var panel = new StackPanel { Orientation = orientation };
+    AddChildren(panel, children, engine, orientation, Number(Get(props, "gap"), 0));
     return new ScrollViewer
     {
       Content = panel, Padding = Thickness(Get(props, "padding")), Margin = Thickness(Get(props, "margin")),
       Width = Size(Get(props, "width")), Height = Size(Get(props, "height")), HorizontalAlignment = Alignment(Get(props, "alignment")),
-      VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+      VerticalScrollBarVisibility = horizontal ? ScrollBarVisibility.Disabled : (Equals(Get(props, "showsVerticalScrollIndicator"), false) ? ScrollBarVisibility.Hidden : ScrollBarVisibility.Auto),
+      HorizontalScrollBarVisibility = horizontal ? (Equals(Get(props, "showsHorizontalScrollIndicator"), false) ? ScrollBarVisibility.Hidden : ScrollBarVisibility.Auto) : ScrollBarVisibility.Disabled
     };
   }
 
@@ -122,7 +133,7 @@ public static class LayoutRenderer
 
   static TextBlock RenderText(ScriptObject? props, object? children) => new()
   {
-    Text = TextValue(children), FontSize = Number(Get(props, "fontSize"), 14), FontWeight = FontWeight(Get(props, "fontWeight")),
+    Text = Get(props, "value")?.ToString() ?? TextValue(children), FontSize = Number(Get(props, "fontSize"), 14), FontWeight = FontWeight(Get(props, "fontWeight")),
     Foreground = Color(Get(props, "color"), Brushes.Black), TextAlignment = TextAlignment(Get(props, "textAlign")), Margin = Thickness(Get(props, "margin"))
   };
 
@@ -143,7 +154,8 @@ public static class LayoutRenderer
     var panel = new StackPanel();
     AddChildren(panel, children, engine, Orientation.Vertical, Number(Get(props, "gap"), 0));
     var border = new Border { Child = panel, Padding = Thickness(Get(props, "padding")), Margin = Thickness(Get(props, "margin")), Background = Color(Get(props, "backgroundColor"), Brushes.Transparent), Opacity = Number(Get(props, "opacity"), 1), Cursor = Cursors.Hand };
-    if (Get(props, "onPress") is ScriptObject callback) border.MouseLeftButtonUp += (_, _) => { try { callback.Invoke(false); } catch (Exception error) { MessageBox.Show(error.ToString(), "Jupiter event error", MessageBoxButton.OK, MessageBoxImage.Error); } };
+    border.IsEnabled = !Equals(Get(props, "disabled"), true);
+    if (Get(props, "onPress") is ScriptObject callback && border.IsEnabled) border.MouseLeftButtonUp += (_, _) => { try { callback.Invoke(false); } catch (Exception error) { MessageBox.Show(error.ToString(), "Jupiter event error", MessageBoxButton.OK, MessageBoxImage.Error); } };
     return border;
   }
 
@@ -155,7 +167,10 @@ public static class LayoutRenderer
 
   static CheckBox RenderSwitch(ScriptObject? props)
   {
-    var control = new CheckBox { IsChecked = Equals(Get(props, "value") ?? Get(props, "defaultValue"), true), IsEnabled = !Equals(Get(props, "disabled"), true), Margin = Thickness(Get(props, "margin")) };
+    var key = Get(props, "id")?.ToString() ?? Get(props, "testID")?.ToString();
+    var control = key is not null && keyedSwitches.TryGetValue(key, out var existing) ? existing : new CheckBox();
+    if (key is not null) keyedSwitches[key] = control;
+    control.IsChecked = Equals(Get(props, "value") ?? Get(props, "defaultValue"), true); control.IsEnabled = !Equals(Get(props, "disabled"), true); control.Margin = Thickness(Get(props, "margin"));
     if (Get(props, "onValueChange") is ScriptObject callback)
     {
       control.Checked += (_, _) => { try { callback.Invoke(false, true); } catch (Exception error) { MessageBox.Show(error.ToString(), "Jupiter event error", MessageBoxButton.OK, MessageBoxImage.Error); } };
@@ -194,7 +209,7 @@ public static class LayoutRenderer
     control.Margin = Thickness(Get(props, "margin"));
     control.HorizontalAlignment = HorizontalAlignment.Stretch;
     var step = Number(Get(props, "step"), 0);
-    if (step > 0) control.TickFrequency = step;
+    if (step > 0) { control.TickFrequency = step; control.IsSnapToTickEnabled = true; }
     sliderCallbacks[control] = Get(props, "onValueChange") as ScriptObject;
     if (!subscribedSliders.Contains(control))
     {
@@ -215,8 +230,22 @@ public static class LayoutRenderer
   static ProgressBar RenderProgressBar(ScriptObject? props) => new()
   { Value = Number(Get(props, "value"), 0), Minimum = Number(Get(props, "minimum"), 0), Maximum = Number(Get(props, "maximum"), 100), Width = Size(Get(props, "width")), Height = Size(Get(props, "height")), Foreground = Color(Get(props, "color"), Brushes.DodgerBlue), Margin = Thickness(Get(props, "margin")) };
 
-  static CheckBox RenderCheckBox(ScriptObject? props) => RenderToggle<CheckBox>(props, new CheckBox { Content = Get(props, "label")?.ToString() });
-  static RadioButton RenderRadioButton(ScriptObject? props) => RenderToggle<RadioButton>(props, new RadioButton { Content = Get(props, "label")?.ToString() });
+  static CheckBox RenderCheckBox(ScriptObject? props)
+  {
+    var key = Get(props, "id")?.ToString() ?? Get(props, "testID")?.ToString();
+    var control = key is not null && keyedCheckBoxes.TryGetValue(key, out var existing) ? existing : new CheckBox();
+    if (key is not null) keyedCheckBoxes[key] = control;
+    control.Content = Get(props, "label")?.ToString();
+    return RenderToggle(props, control);
+  }
+  static RadioButton RenderRadioButton(ScriptObject? props)
+  {
+    var key = Get(props, "id")?.ToString() ?? Get(props, "testID")?.ToString();
+    var control = key is not null && keyedRadioButtons.TryGetValue(key, out var existing) ? existing : new RadioButton();
+    if (key is not null) keyedRadioButtons[key] = control;
+    control.Content = Get(props, "label")?.ToString();
+    return RenderToggle(props, control);
+  }
   static T RenderToggle<T>(ScriptObject? props, T control) where T : System.Windows.Controls.Primitives.ToggleButton
   {
     control.IsChecked = Equals(Get(props, "value") ?? Get(props, "defaultValue"), true); control.IsEnabled = !Equals(Get(props, "disabled"), true); control.Margin = Thickness(Get(props, "margin"));
@@ -227,7 +256,10 @@ public static class LayoutRenderer
 
   static DatePicker RenderDatePicker(ScriptObject? props)
   {
-    var picker = new DatePicker { IsEnabled = !Equals(Get(props, "disabled"), true), Width = Size(Get(props, "width")), Margin = Thickness(Get(props, "margin")) };
+    var key = Get(props, "id")?.ToString() ?? Get(props, "testID")?.ToString();
+    var picker = key is not null && keyedDatePickers.TryGetValue(key, out var existing) ? existing : new DatePicker();
+    if (key is not null) keyedDatePickers[key] = picker;
+    picker.IsEnabled = !Equals(Get(props, "disabled"), true); picker.Width = Size(Get(props, "width")); picker.Margin = Thickness(Get(props, "margin"));
     if (DateTime.TryParse(Get(props, "value")?.ToString(), out var value)) picker.SelectedDate = value;
     if (Get(props, "onChange") is ScriptObject callback) picker.SelectedDateChanged += (_, _) => { try { callback.Invoke(false, picker.SelectedDate?.ToString("yyyy-MM-dd") ?? string.Empty); } catch { } };
     return picker;
@@ -271,12 +303,16 @@ public static class LayoutRenderer
       return absoluteUri;
     }
     if (Path.IsPathRooted(source)) return File.Exists(source) ? new Uri(source) : null;
-    var current = new DirectoryInfo(Directory.GetCurrentDirectory());
-    while (current is not null)
+    var locations = new[] { new DirectoryInfo(AppContext.BaseDirectory), new DirectoryInfo(Directory.GetCurrentDirectory()) };
+    foreach (var location in locations)
     {
-      var candidate = Path.Combine(current.FullName, source);
-      if (File.Exists(candidate)) return new Uri(candidate);
-      current = current.Parent;
+      var current = location;
+      while (current is not null)
+      {
+        var candidate = Path.Combine(current.FullName, source);
+        if (File.Exists(candidate)) return new Uri(candidate);
+        current = current.Parent;
+      }
     }
     return null;
   }
@@ -287,7 +323,7 @@ public static class LayoutRenderer
     var box = key is not null && keyedTextInputs.TryGetValue(key, out var keyedBox) ? keyedBox : new TextBox();
     if (key is not null) keyedTextInputs[key] = box;
     var value = Get(props, "value")?.ToString() ?? Get(props, "defaultValue")?.ToString() ?? string.Empty;
-    if (box.Text != value && !box.IsKeyboardFocusWithin)
+    if (box.Text != value)
     {
       syncingTextInputs.Add(box);
       try { box.Text = value; }
@@ -309,6 +345,29 @@ public static class LayoutRenderer
       box.LostKeyboardFocus += (_, _) => { try { textInputBlurCallbacks.TryGetValue(box, out var activeCallback); activeCallback?.Invoke(false); } catch (Exception error) { MessageBox.Show(error.ToString(), "Jupiter input blur error", MessageBoxButton.OK, MessageBoxImage.Error); } };
     }
     if (Equals(Get(props, "autoFocus"), true) && autoFocusedTextInputs.Add(box)) box.Dispatcher.BeginInvoke(() => { if (!box.IsKeyboardFocusWithin) Keyboard.Focus(box); }, System.Windows.Threading.DispatcherPriority.ContextIdle);
+    return box;
+  }
+
+  static PasswordBox RenderPasswordInput(ScriptObject? props)
+  {
+    var key = Get(props, "id")?.ToString() ?? Get(props, "testID")?.ToString();
+    var box = key is not null && keyedPasswordInputs.TryGetValue(key, out var keyedBox) ? keyedBox : new PasswordBox();
+    if (key is not null) keyedPasswordInputs[key] = box;
+    var value = Get(props, "value")?.ToString() ?? Get(props, "defaultValue")?.ToString() ?? string.Empty;
+    if (box.Password != value)
+    {
+      syncingPasswordInputs.Add(box);
+      try { box.Password = value; }
+      finally { syncingPasswordInputs.Remove(box); }
+    }
+    box.ToolTip = Get(props, "placeholder")?.ToString(); box.IsEnabled = !Equals(Get(props, "disabled"), true); box.IsEnabled = !Equals(Get(props, "editable"), false) && box.IsEnabled; box.Margin = Thickness(Get(props, "margin"));
+    box.Width = Size(Get(props, "width")); box.Height = Size(Get(props, "height"));
+    passwordInputCallbacks[box] = Get(props, "onChangeText") as ScriptObject;
+    if (!subscribedPasswordInputs.Contains(box))
+    {
+      subscribedPasswordInputs.Add(box);
+      box.PasswordChanged += (_, _) => { if (syncingPasswordInputs.Contains(box)) return; try { passwordInputCallbacks.TryGetValue(box, out var callback); callback?.Invoke(false, box.Password); } catch (Exception error) { MessageBox.Show(error.ToString(), "Jupiter password input error", MessageBoxButton.OK, MessageBoxImage.Error); } };
+    }
     return box;
   }
 

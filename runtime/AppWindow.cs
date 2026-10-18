@@ -10,6 +10,11 @@ namespace Jupiter.Runtime;
 public sealed class AppWindow : Window
 {
   readonly Grid root = new(); readonly ClearScriptRuntime runtime;
+  public bool ConfiguredFullscreen { get; private set; }
+  public WindowStyle FullscreenRestoreStyle { get; private set; } = WindowStyle.SingleBorderWindow;
+  public ResizeMode FullscreenRestoreResizeMode { get; private set; } = ResizeMode.CanResize;
+  public WindowState FullscreenRestoreState { get; private set; } = WindowState.Normal;
+  public void ClearConfiguredFullscreen() => ConfiguredFullscreen = false;
   public AppWindow()
   {
     Title = "Jupiter";
@@ -37,16 +42,20 @@ public sealed class AppWindow : Window
     if (options.Resizable is not null) ResizeMode = options.Resizable.Value ? ResizeMode.CanResize : ResizeMode.NoResize;
     if (options.AlwaysOnTop is not null) Topmost = options.AlwaysOnTop.Value;
 
-    if (options.Fullscreen is true)
-    {
-      WindowStyle = WindowStyle.None;
-      ResizeMode = ResizeMode.NoResize;
-      WindowState = WindowState.Maximized;
-    }
-
     if (options.TitleBar is not null)
     {
       WindowStyle = options.TitleBar.Value ? WindowStyle.SingleBorderWindow : WindowStyle.None;
+    }
+
+    ConfiguredFullscreen = options.Fullscreen is true;
+    if (ConfiguredFullscreen)
+    {
+      FullscreenRestoreStyle = WindowStyle;
+      FullscreenRestoreResizeMode = ResizeMode;
+      FullscreenRestoreState = WindowState;
+      WindowStyle = WindowStyle.None;
+      ResizeMode = ResizeMode.NoResize;
+      WindowState = WindowState.Maximized;
     }
 
     if (options.StartPosition is not null)
@@ -157,12 +166,16 @@ public sealed class AppWindow : Window
   {
     if (Uri.TryCreate(iconPath, UriKind.Absolute, out var uri) && uri.IsFile) return File.Exists(uri.LocalPath) ? uri.LocalPath : null;
     if (Path.IsPathRooted(iconPath)) return File.Exists(iconPath) ? iconPath : null;
-    var current = new DirectoryInfo(Directory.GetCurrentDirectory());
-    while (current is not null)
+    var locations = new[] { new DirectoryInfo(AppContext.BaseDirectory), new DirectoryInfo(Directory.GetCurrentDirectory()) };
+    foreach (var location in locations)
     {
-      var candidate = Path.Combine(current.FullName, iconPath);
-      if (File.Exists(candidate)) return candidate;
-      current = current.Parent;
+      var current = location;
+      while (current is not null)
+      {
+        var candidate = Path.Combine(current.FullName, iconPath);
+        if (File.Exists(candidate)) return candidate;
+        current = current.Parent;
+      }
     }
     return null;
   }

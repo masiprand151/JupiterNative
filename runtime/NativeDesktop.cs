@@ -7,13 +7,13 @@ namespace Jupiter.Runtime;
 
 public sealed class NativeDesktop
 {
-  readonly Window window;
+  readonly AppWindow window;
   WindowStyle previousWindowStyle = WindowStyle.SingleBorderWindow;
   ResizeMode previousResizeMode = ResizeMode.CanResize;
   WindowState previousWindowState = WindowState.Normal;
   bool isFullscreen;
 
-  public NativeDesktop(Window window) => this.window = window;
+  public NativeDesktop(AppWindow window) => this.window = window;
 
   public void MinimizeWindow() => window.WindowState = WindowState.Minimized;
   public void ToggleMaximizeWindow() => window.WindowState = window.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
@@ -24,18 +24,27 @@ public sealed class NativeDesktop
       window.WindowStyle = previousWindowStyle;
       window.ResizeMode = previousResizeMode;
       isFullscreen = false;
+      window.ClearConfiguredFullscreen();
     }
 
     window.WindowState = WindowState.Normal;
   }
   public void ToggleFullscreen()
   {
+    if (!isFullscreen && window.ConfiguredFullscreen)
+    {
+      previousWindowStyle = window.FullscreenRestoreStyle;
+      previousResizeMode = window.FullscreenRestoreResizeMode;
+      previousWindowState = window.FullscreenRestoreState;
+      isFullscreen = true;
+    }
     if (isFullscreen)
     {
       window.WindowStyle = previousWindowStyle;
       window.ResizeMode = previousResizeMode;
       window.WindowState = previousWindowState;
       isFullscreen = false;
+      window.ClearConfiguredFullscreen();
       return;
     }
 
@@ -94,12 +103,16 @@ public sealed class NativeDesktop
   static string? ResolvePath(string path)
   {
     if (Path.IsPathRooted(path)) return path;
-    var current = new DirectoryInfo(Directory.GetCurrentDirectory());
-    while (current is not null)
+    var locations = new[] { new DirectoryInfo(AppContext.BaseDirectory), new DirectoryInfo(Directory.GetCurrentDirectory()) };
+    foreach (var location in locations)
     {
-      var candidate = Path.Combine(current.FullName, path);
-      if (File.Exists(candidate) || Directory.Exists(candidate)) return candidate;
-      current = current.Parent;
+      var current = location;
+      while (current is not null)
+      {
+        var candidate = Path.Combine(current.FullName, path);
+        if (File.Exists(candidate) || Directory.Exists(candidate)) return candidate;
+        current = current.Parent;
+      }
     }
     return null;
   }

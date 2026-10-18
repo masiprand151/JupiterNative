@@ -34,3 +34,10 @@ export function flushEffects(effects: EffectTask[]) {
     task.hook.cleanup = typeof cleanup === 'function' ? cleanup : undefined;
   }
 }
+
+export function disposeInstance(instance: { hooks: Hook[] }) {
+  for (const hook of instance.hooks) {
+    hook.cleanup?.();
+    hook.cleanup = undefined;
+  }
+}

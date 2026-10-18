@@ -84,7 +84,11 @@ export function start(app: () => Child, options?: WindowOptions) {
   });
 }
 export function FlatList<T>(props: FlatListProps<T>): Child {
-  return props.data.map((item, index) => props.renderItem({ item, index }));
+  return props.data.map((item, index) => {
+    const child = props.renderItem({ item, index });
+    if (!props.keyExtractor || typeof child !== 'object' || child === null || Array.isArray(child)) return child;
+    return { ...(child as object), key: props.keyExtractor(item, index) } as Child;
+  });
 }
 export const StyleSheet = {
   create<T extends Record<string, StyleProps>>(styles: T): T {

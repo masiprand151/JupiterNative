@@ -59,6 +59,11 @@ function build() {
     ],
     runtime,
   );
+  for (const directory of ["assets", "docs"]) {
+    const source = path.join(root, directory);
+    const destination = path.join(root, "dist", directory);
+    if (fs.existsSync(source)) fs.cpSync(source, destination, { recursive: true, force: true });
+  }
   const exe = path.join(root, "dist", "Jupiter.exe");
   if (!fs.existsSync(exe))
     throw new Error("Build completed without dist/Jupiter.exe");

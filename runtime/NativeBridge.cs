@@ -22,9 +22,13 @@ public sealed class NativeBridge
   {
     var previousTextBoxes = FindTextBoxes(root);
     var previousSliders = FindSliders(root);
+    var previousPasswordBoxes = FindPasswordBoxes(root);
+    var previousStatefulControls = FindStatefulControls(root);
     var focusedKey = previousTextBoxes.FirstOrDefault(textBox => textBox.IsKeyboardFocusWithin)?.Tag?.ToString();
     foreach (var textBox in previousTextBoxes) Detach(textBox);
     foreach (var slider in previousSliders) Detach(slider);
+    foreach (var passwordBox in previousPasswordBoxes) Detach(passwordBox);
+    foreach (var control in previousStatefulControls) Detach(control);
     root.Children.Clear();
     root.Children.Add(LayoutRenderer.Render(tree, engine));
 
@@ -71,6 +75,20 @@ public sealed class NativeBridge
     return result;
   }
 
+  static List<PasswordBox> FindPasswordBoxes(DependencyObject parent)
+  {
+    var result = new List<PasswordBox>();
+    CollectPasswordBoxes(parent, result);
+    return result;
+  }
+
+  static List<FrameworkElement> FindStatefulControls(DependencyObject parent)
+  {
+    var result = new List<FrameworkElement>();
+    CollectStatefulControls(parent, result);
+    return result;
+  }
+
   static void CollectSliders(DependencyObject parent, List<Slider> result)
   {
     if (parent is Slider slider) { result.Add(slider); return; }
@@ -87,6 +105,24 @@ public sealed class NativeBridge
     {
       CollectTextBoxes(VisualTreeHelper.GetChild(parent, index), result);
     }
+  }
+
+  static void CollectPasswordBoxes(DependencyObject parent, List<PasswordBox> result)
+  {
+    if (parent is PasswordBox passwordBox) { result.Add(passwordBox); return; }
+    for (var index = 0; index < VisualTreeHelper.GetChildrenCount(parent); index++)
+      CollectPasswordBoxes(VisualTreeHelper.GetChild(parent, index), result);
+  }
+
+  static void CollectStatefulControls(DependencyObject parent, List<FrameworkElement> result)
+  {
+    if (parent is System.Windows.Controls.Primitives.ToggleButton or DatePicker)
+    {
+      if (parent is FrameworkElement element) result.Add(element);
+      return;
+    }
+    for (var index = 0; index < VisualTreeHelper.GetChildrenCount(parent); index++)
+      CollectStatefulControls(VisualTreeHelper.GetChild(parent, index), result);
   }
 
   static void Detach(FrameworkElement element)
