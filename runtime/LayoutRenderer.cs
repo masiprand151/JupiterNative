@@ -1,4 +1,5 @@
 using System.Collections;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -234,10 +235,50 @@ public static class LayoutRenderer
 
   static System.Windows.Controls.Image RenderImage(ScriptObject? props)
   {
-    var source = Get(props, "source"); var uri = source is ScriptObject sourceObject ? Get(sourceObject, "uri")?.ToString() : source?.ToString();
-    var image = new System.Windows.Controls.Image { Width = Size(Get(props, "width")), Height = Size(Get(props, "height")), Margin = Thickness(Get(props, "margin")), Stretch = Get(props, "resizeMode")?.ToString() switch { "cover" => Stretch.UniformToFill, "stretch" => Stretch.Fill, _ => Stretch.Uniform } };
-    if (Uri.TryCreate(uri, UriKind.Absolute, out var imageUri)) { try { image.Source = new BitmapImage(imageUri); } catch { } }
+    var source = Get(props, "src") ?? Get(props, "source");
+    var uri = source is ScriptObject sourceObject ? Get(sourceObject, "uri")?.ToString() : source?.ToString();
+    var fit = Get(props, "objectFit")?.ToString() ?? Get(props, "resizeMode")?.ToString();
+    var image = new System.Windows.Controls.Image
+    {
+      Width = Size(Get(props, "width")), Height = Size(Get(props, "height")), Margin = Thickness(Get(props, "margin")),
+      Stretch = fit switch { "cover" => Stretch.UniformToFill, "fill" or "stretch" => Stretch.Fill, _ => Stretch.Uniform },
+      ToolTip = Get(props, "alt")?.ToString()
+    };
+    try
+    {
+      var imageUri = ResolveImageUri(uri);
+      if (imageUri is not null)
+      {
+        var bitmap = new BitmapImage();
+        bitmap.BeginInit(); bitmap.UriSource = imageUri; bitmap.CacheOption = BitmapCacheOption.OnLoad; bitmap.EndInit(); bitmap.Freeze();
+        image.Source = bitmap;
+      }
+      else throw new FileNotFoundException("Image source was not found.", uri);
+    }
+    catch (Exception error)
+    {
+      if (Get(props, "onError") is ScriptObject callback) { try { callback.Invoke(false, error.Message); } catch { } }
+    }
     return image;
+  }
+
+  static Uri? ResolveImageUri(string? source)
+  {
+    if (string.IsNullOrWhiteSpace(source)) return null;
+    if (Uri.TryCreate(source, UriKind.Absolute, out var absoluteUri))
+    {
+      if (absoluteUri.IsFile && !File.Exists(absoluteUri.LocalPath)) return null;
+      return absoluteUri;
+    }
+    if (Path.IsPathRooted(source)) return File.Exists(source) ? new Uri(source) : null;
+    var current = new DirectoryInfo(Directory.GetCurrentDirectory());
+    while (current is not null)
+    {
+      var candidate = Path.Combine(current.FullName, source);
+      if (File.Exists(candidate)) return new Uri(candidate);
+      current = current.Parent;
+    }
+    return null;
   }
 
   static TextBox RenderTextInput(ScriptObject? props)

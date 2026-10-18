@@ -40,7 +40,7 @@ export interface CheckBoxProps extends CommonProps { value?: boolean; defaultVal
 export interface RadioButtonProps extends CommonProps { value?: boolean; disabled?: boolean; label?: string; onValueChange?: (value: boolean) => void; }
 export interface DatePickerProps extends CommonProps { value?: string; disabled?: boolean; onChange?: (value: string) => void; }
 export interface SwitchProps extends CommonProps { value?: boolean; defaultValue?: boolean; disabled?: boolean; onValueChange?: (value: boolean) => void; }
-export interface ImageProps extends CommonProps { source: string | { uri: string }; resizeMode?: 'cover' | 'contain' | 'stretch'; alt?: string; }
+export interface ImageProps extends CommonProps { src?: string; source?: string | { uri: string }; width?: number; height?: number; objectFit?: 'cover' | 'contain' | 'fill'; resizeMode?: 'cover' | 'contain' | 'stretch'; alt?: string; onError?: (message: string) => void; }
 export interface TextInputProps extends CommonProps { value?: string; defaultValue?: string; placeholder?: string; onChangeText?: (value: string) => void; onSubmitEditing?: (value: string) => void; onFocus?: () => void; onBlur?: () => void; disabled?: boolean; editable?: boolean; secureTextEntry?: boolean; multiline?: boolean; maxLength?: number; autoFocus?: boolean; }
 export interface ScrollViewProps extends CommonProps { horizontal?: boolean; showsVerticalScrollIndicator?: boolean; showsHorizontalScrollIndicator?: boolean; keyboardShouldPersistTaps?: boolean; }
 export interface FlatListProps<T = unknown> extends CommonProps { data: T[]; renderItem: (info: { item: T; index: number }) => Child; keyExtractor?: (item: T, index: number) => string; horizontal?: boolean; }

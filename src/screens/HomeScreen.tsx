@@ -1,5 +1,6 @@
 import {
   Button,
+  Image,
   NavigationScreenProps,
   SafeAreaView,
   Text,
@@ -17,6 +18,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView>
       <View padding={24} gap={12}>
+        <Image src="assets/jn.png" alt="JN logo" width={64} height={64} objectFit="contain" />
         <Text fontSize={28} fontWeight="bold">Welcome to Jupiter</Text>
         <Text>Build native Windows desktop apps with TypeScript and TSX.</Text>
 
