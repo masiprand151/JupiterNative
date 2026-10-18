@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Jupiter Windows desktop framework documentation"
+    />
+    <title>Jupiter Documentation</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link href="styles.css" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="docs-shell">
+      <aside
+        class="docs-sidebar position-fixed top-0 bottom-0 start-0 d-none d-lg-block"
+        style="width: 280px; overflow-y: auto"
+      >
+        <div class="p-4">
+          <div class="d-flex align-items-center gap-3 mb-4">
+            <div class="brand-mark">J</div>
+            <div>
+              <strong class="fs-5">Jupiter</strong
+              ><small class="d-block text-white-50"
+                >Windows desktop runtime</small
+              >
+            </div>
+          </div>
+          <input
+            id="search"
+            class="form-control search-box mb-4"
+            placeholder="Search docs..."
+          />
+          <div class="mini-label mb-2">Guide</div>
+          <nav class="nav flex-column gap-1">
+            <a class="sidebar-link" href="pages/getting-started.html"
+              >Getting started</a
+            >
+            <a class="sidebar-link" href="pages/architecture.html"
+              >Architecture</a
+            >
+            <a class="sidebar-link" href="pages/window.html"
+              >Window configuration</a
+            >
+            <a class="sidebar-link" href="pages/components.html">Components</a>
+            <a class="sidebar-link" href="pages/state-effects.html"
+              >State and effects</a
+            >
+            <a class="sidebar-link" href="pages/navigation.html">Navigation</a>
+            <a class="sidebar-link" href="pages/desktop-api.html"
+              >Desktop APIs</a
+            >
+            <a class="sidebar-link" href="pages/troubleshooting.html"
+              >Troubleshooting</a
+            >
+          </nav>
+          <div class="mini-label mt-4 mb-2">Reference</div>
+          <nav class="nav flex-column gap-1">
+            <a class="sidebar-link" href="pages/inputs.html">Input reference</a
+            ><a class="sidebar-link" href="pages/build.html">Build commands</a
+            ><a class="sidebar-link" href="pages/limitations.html"
+              >Limitations</a
+            >
+          </nav>
+        </div>
+      </aside>
+      <main class="main-content p-3 p-md-5">
+        <section class="hero p-4 p-md-5 mb-4" id="start">
+          <span class="badge hero-badge mb-3"
+            >TypeScript + TSX · WPF · ClearScript V8</span
+          >
+          <h1 class="display-5 fw-bold">
+            Build Windows desktop apps with Jupiter.
+          </h1>
+          <p class="lead text-white-50">
+            A lightweight component framework that renders TypeScript components
+            into native WPF controls.
+          </p>
+          <a class="btn btn-info" href="#quick-example">Quick example</a>
+        </section>
+
+        <section class="section-card" id="quick-example">
+          <h2>Quick example</h2>
+          <p>Components use JSX, state, and native desktop APIs.</p>
+          <pre><code>import { Button, Text, TextInput, View, desktop, useState } from "@jupiter/core";
+export function HomeScreen() {
+  const [name, setName] = useState("");
+  return &lt;View padding={16} gap={8}&gt;
+    &lt;Text&gt;Hello {name || "Jupiter"}!&lt;/Text&gt;
+    &lt;TextInput id="name" value={name} onChangeText={setName} /&gt;
+    &lt;Button title="Copy name" onPress={() =&gt; desktop.clipboard.setText(name)} /&gt;
+  &lt;/View&gt;;
+}</code></pre>
+        </section>
+
+        <section class="section-card" id="architecture">
+          <h2>Architecture</h2>
+          <div class="row g-3">
+            <div class="col-md-4">
+              <div class="flow-step">
+                <strong>1. TypeScript</strong><br />Components live in
+                <code>src/</code>.
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="flow-step">
+                <strong>2. Bundle</strong><br />esbuild creates
+                <code>runtime/App.js</code>.
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="flow-step">
+                <strong>3. Native runtime</strong><br />ClearScript runs
+                JavaScript in WPF.
+              </div>
+            </div>
+          </div>
+          <pre><code>src/entry.ts -> packages/core -> runtime/App.js -> ClearScript V8 -> NativeBridge -> LayoutRenderer -> WPF</code></pre>
+          <p class="mb-0">
+            The current renderer performs full tree updates and keeps the
+            JavaScript-to-native bridge intentionally small.
+          </p>
+        </section>
+
+        <section class="section-card" id="window">
+          <h2>Window configuration</h2>
+          <p>Pass initial settings from <code>src/entry.ts</code>:</p>
+          <pre><code>start(App, {
+  title: "My App", width: 1200, height: 800,
+  minWidth: 800, minHeight: 500,
+  maxWidth: 1600, maxHeight: 1000,
+  resizable: true, titleBar: false,
+  alwaysOnTop: false, fullscreen: false,
+  startPosition: { type: "center" }
+});</code></pre>
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Option</th>
+                  <th>Purpose</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>title</code></td>
+                  <td>Initial native title.</td>
+                </tr>
+                <tr>
+                  <td><code>width</code>, <code>height</code></td>
+                  <td>Initial dimensions.</td>
+                </tr>
+                <tr>
+                  <td><code>minWidth</code>, <code>minHeight</code></td>
+                  <td>Minimum dimensions.</td>
+                </tr>
+                <tr>
+                  <td><code>maxWidth</code>, <code>maxHeight</code></td>
+                  <td>Maximum dimensions.</td>
+                </tr>
+                <tr>
+                  <td><code>resizable</code></td>
+                  <td>Enable or disable resizing.</td>
+                </tr>
+                <tr>
+                  <td><code>titleBar</code></td>
+                  <td>Show or hide the title bar.</td>
+                </tr>
+                <tr>
+                  <td><code>alwaysOnTop</code>, <code>fullscreen</code></td>
+                  <td>Initial window behavior.</td>
+                </tr>
+                <tr>
+                  <td><code>startPosition</code></td>
+                  <td>
+                    <code>center</code> or <code>manual</code> with
+                    <code>x</code>/<code>y</code>.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="note">
+            <strong>Transparency:</strong> WPF transparency depends on native
+            window style and rendering mode. Jupiter does not enable it
+            automatically.
+          </div>
+        </section>
+
+        <section class="section-card" id="components">
+          <h2>Components</h2>
+          <p>Native-backed JSX components currently include:</p>
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Component</th>
+                  <th>Native mapping</th>
+                  <th>Main props/events</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>View</code>, <code>SafeAreaView</code></td>
+                  <td>Panel/layout</td>
+                  <td>
+                    <code>padding</code>, <code>gap</code>,
+                    <code>direction</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>Text</code></td>
+                  <td>TextBlock</td>
+                  <td><code>fontSize</code>, <code>color</code></td>
+                </tr>
+                <tr>
+                  <td><code>Button</code></td>
+                  <td>Button</td>
+                  <td><code>title</code>, <code>onPress</code></td>
+                </tr>
+                <tr>
+                  <td><code>TextInput</code></td>
+                  <td>TextBox</td>
+                  <td><code>value</code>, change/focus/submit events</td>
+                </tr>
+                <tr>
+                  <td><code>ScrollView</code>, <code>FlatList</code></td>
+                  <td>ScrollViewer / children</td>
+                  <td>list and scroll props</td>
+                </tr>
+                <tr>
+                  <td><code>Modal</code></td>
+                  <td>Overlay layout</td>
+                  <td><code>visible</code>, <code>onRequestClose</code></td>
+                </tr>
+                <tr>
+                  <td>
+                    <code>Switch</code>, <code>CheckBox</code>,
+                    <code>RadioButton</code>
+                  </td>
+                  <td>Toggle controls</td>
+                  <td><code>value</code>, <code>onValueChange</code></td>
+                </tr>
+                <tr>
+                  <td><code>Slider</code></td>
+                  <td>WPF Slider</td>
+                  <td>value, min/max, <code>step</code></td>
+                </tr>
+                <tr>
+                  <td>
+                    <code>DatePicker</code>, <code>ProgressBar</code>,
+                    <code>ActivityIndicator</code>
+                  </td>
+                  <td>WPF controls</td>
+                  <td>value/range/status props</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section-card" id="inputs">
+          <h2>Stable inputs</h2>
+          <p>
+            Give controlled inputs a unique <code>id</code> or
+            <code>testID</code>. This preserves native identity across full
+            renders.
+          </p>
+          <pre><code>&lt;TextInput id="email-input" value={email}
+  onChangeText={setEmail} onSubmitEditing={submit} /&gt;
+
+&lt;Slider id="volume-slider" value={volume}
+  minimumValue={0} maximumValue={100} step={10}
+  onValueChange={setVolume} /&gt;</code></pre>
+          <p class="mb-0">
+            The slider is explicitly horizontal and left-to-right. The bridge
+            detaches native sliders before reusing them to avoid the WPF
+            logical-parent error.
+          </p>
+        </section>
+
+        <section class="section-card" id="state">
+          <h2>State and effects</h2>
+          <pre><code>import { useEffect, useState } from "@jupiter/core";
+const [count, setCount] = useState(0);
+useEffect(() =&gt; {
+  console.log(`Counter changed to ${count}`);
+  return () =&gt; console.log(`Cleaning up ${count}`);
+}, [count]);</code></pre>
+          <p>
+            Console calls are redirected through <code>JupiterConsole</code>.
+            When started from a terminal, output uses the
+            <code>[Jupiter:log]</code> prefix.
+          </p>
+        </section>
+
+        <section class="section-card" id="navigation">
+          <h2>Navigation and route parameters</h2>
+          <pre><code>navigate("Profile", { name: "Ada", count: 3 });
+export function ProfileScreen({ route, navigation }) {
+  return &lt;View padding={16}&gt;
+    &lt;Text&gt;Name: {route.params?.name}&lt;/Text&gt;
+    &lt;Button title="Back" onPress={navigation.goBack} /&gt;
+  &lt;/View&gt;;
+}</code></pre>
+          <p>
+            Use <code>navigate</code>, <code>replace</code>, and
+            <code>goBack</code>. Register screens in
+            <code>NavigationContainer</code>.
+          </p>
+        </section>
+
+        <section class="section-card" id="desktop">
+          <h2>Native desktop APIs</h2>
+          <p>
+            Import the <code>desktop</code> object from
+            <code>@jupiter/core</code>.
+          </p>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="api-card">
+                <h3>Window</h3>
+                <code>minimize()</code> · <code>toggleMaximize()</code> ·
+                <code>toggleFullscreen()</code> ·
+                <code>toggleAlwaysOnTop()</code> · <code>restore()</code> ·
+                <code>close()</code> · <code>setTitle(title)</code>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="api-card">
+                <h3>Clipboard</h3>
+                <code>setText(text)</code> · <code>getText()</code>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="api-card">
+                <h3>Files</h3>
+                <code>openFile(filter)</code> ·
+                <code>saveFile(name, filter)</code> ·
+                <code>readText(path)</code> ·
+                <code>writeText(path, content)</code>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="api-card">
+                <h3>System</h3>
+                <code>openUrl(url)</code> ·
+                <code>showMessage(message, title)</code>
+              </div>
+            </div>
+          </div>
+          <pre
+            class="mt-3"
+          ><code>const file = desktop.files.saveFile("notes.txt", "Text files (*.txt)|*.txt");
+if (file) {
+  desktop.files.writeText(file, "Hello from Jupiter");
+  desktop.showMessage(desktop.files.readText(file), "File content");
+}
+desktop.openUrl("docs/index.html");</code></pre>
+          <div class="note">
+            <strong>Local paths:</strong> <code>file:///docs</code> means a
+            root-drive path. Use <code>docs/index.html</code> for the project
+            documentation.
+          </div>
+        </section>
+
+        <section class="section-card" id="build">
+          <h2>Build and run</h2>
+          <pre><code>npm.cmd install
+jupiter doctor
+jupiter typecheck
+jupiter dev
+jupiter build</code></pre>
+          <ul>
+            <li>
+              <code>dev</code> bundles, builds, and launches the WPF preview.
+            </li>
+            <li><code>build</code> creates <code>dist/Jupiter.exe</code>.</li>
+            <li>
+              Close a running Jupiter process before rebuilding the published
+              executable.
+            </li>
+          </ul>
+        </section>
+
+        <section class="section-card" id="troubleshooting">
+          <h2>Troubleshooting</h2>
+          <h3>Only one control is visible</h3>
+          <p>
+            A modal must be rendered as an overlay, not by placing every child
+            in the same grid layer. The renderer now keeps normal content in a
+            panel.
+          </p>
+          <h3>Slider logical-parent error</h3>
+          <p>
+            Use a stable slider <code>id</code>. The native bridge detaches old
+            sliders before a full update.
+          </p>
+          <h3>Console output is missing</h3>
+          <p>
+            Run the app from a terminal. The GUI runtime attaches to its parent
+            console and prefixes output.
+          </p>
+          <h3>Transparency is not allowed</h3>
+          <p>
+            Check the WPF window style and rendering mode. Unsupported
+            transparency combinations are rejected by WPF.
+          </p>
+        </section>
+
+        <section class="section-card" id="limits">
+          <h2>Current limitations</h2>
+          <ul>
+            <li>Full tree updates instead of incremental UI reconciliation.</li>
+            <li><code>FlatList</code> is not virtualized.</li>
+            <li>Accessibility mapping and style normalization are limited.</li>
+            <li>The desktop API is currently Windows/WPF-specific.</li>
+            <li>
+              Automated tests, packaging, and production hardening are still
+              evolving.
+            </li>
+          </ul>
+        </section>
+        <footer class="text-center text-secondary py-3">
+          Jupiter documentation · <span id="year"></span>
+        </footer>
+      </main>
+    </div>
+    <script>
+      const search = document.getElementById("search");
+      search?.addEventListener("input", () => {
+        const q = search.value.toLowerCase().trim();
+        document
+          .querySelectorAll("main section")
+          .forEach(
+            (s) =>
+              (s.hidden = Boolean(q) && !s.innerText.toLowerCase().includes(q)),
+          );
+      });
+      document.getElementById("year").textContent = new Date().getFullYear();
+    </script>
+  </body>
+</html>

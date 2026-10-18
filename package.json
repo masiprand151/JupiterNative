@@ -1,0 +1,15 @@
+{
+  "name": "jupiter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Native Windows desktop framework using TypeScript/TSX and WPF.",
+  "bin": { "jupiter": "bin/cli.js" },
+  "scripts": {
+    "dev": "node bin/cli.js dev",
+    "build": "node bin/cli.js build",
+    "clean": "node bin/cli.js clean",
+    "doctor": "node bin/cli.js doctor",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": { "esbuild": "^0.25.0", "typescript": "^5.7.0" }
+}

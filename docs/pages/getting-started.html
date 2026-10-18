@@ -1,0 +1,10 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Getting Started · Jupiter</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"><link href="../styles.css" rel="stylesheet"></head><body><main class="main-content p-3 p-md-5"><a href="../index.html">← Jupiter Documentation</a><section class="section-card mt-4"><h1>Getting started</h1><p>Jupiter is a TypeScript desktop framework that renders JSX components into native Windows WPF controls.</p><h2>Install and run</h2><pre><code>npm.cmd install
+npm.cmd run doctor
+npm.cmd run typecheck
+npm.cmd run dev</code></pre><h2>First component</h2><pre><code>import { Button, Text, View } from "@jupiter/core";
+export function HomeScreen() {
+  return &lt;View padding={16} gap={8}&gt;
+    &lt;Text&gt;Hello Jupiter&lt;/Text&gt;
+    &lt;Button title="Click me" onPress={() =&gt; console.log("clicked")} /&gt;
+  &lt;/View&gt;;
+}</code></pre></section></main></body></html>

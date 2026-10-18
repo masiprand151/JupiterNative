@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "target": "ES2020", "module": "ESNext", "moduleResolution": "Bundler",
+    "strict": true, "jsx": "react-jsx", "jsxImportSource": "@jupiter/core",
+    "esModuleInterop": true, "skipLibCheck": true, "noEmit": true,
+    "paths": { "@jupiter/core": ["./packages/core/index.ts"], "@jupiter/core/*": ["./packages/core/*"] }
+  },
+  "include": ["src", "packages"]
+}
