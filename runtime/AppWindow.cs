@@ -18,8 +18,8 @@ public sealed class AppWindow : Window
   public AppWindow()
   {
     Title = "Jupiter";
-    Width = 1000;
-    Height = 700;
+    Width = 0;
+    Height = 0;
     Content = root;
     runtime = new ClearScriptRuntime(this, root);
     Loaded += (_, _) => runtime.Start();
