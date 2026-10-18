@@ -1,6 +1,7 @@
 {
   "name": "jupiter",
   "version": "0.1.0",
+  "license": "MIT",
   "private": true,
   "description": "Native Windows desktop framework using TypeScript/TSX and WPF.",
   "bin": { "jupiter": "bin/cli.js" },
