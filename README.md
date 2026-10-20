@@ -5,10 +5,11 @@ Jupiter is an experimental Windows desktop framework that uses TypeScript/TSX fo
 ## Commands
 
 ```powershell
-npm.cmd install
-npm.cmd run doctor
-npm.cmd run typecheck
-npm.cmd run build
+npm install
+npm run doctor
+npm run typecheck
+npm run build
+npm run dev
 ```
 
 The publish output is `dist/Jupiter.exe`. The runtime is self-contained for Windows x64 and embeds `runtime/App.js` as a resource.
