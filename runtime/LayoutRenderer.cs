@@ -7,12 +7,16 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Microsoft.ClearScript;
 using Microsoft.ClearScript.V8;
+using LibVLCSharp.Shared;
+using LibVLCSharp.WPF;
 
 namespace Jupiter.Runtime;
 
 public static class LayoutRenderer
 {
   static readonly Dictionary<string, TextBox> keyedTextInputs = new();
+  static readonly Dictionary<string, LibVLCSharp.Shared.MediaPlayer> keyedMediaPlayers = new();
+  static readonly Dictionary<string, VideoView> keyedVideoViews = new();
   static readonly HashSet<TextBox> subscribedTextInputs = new();
   static readonly HashSet<TextBox> syncingTextInputs = new();
   static readonly HashSet<TextBox> autoFocusedTextInputs = new();
@@ -36,9 +40,15 @@ public static class LayoutRenderer
   {
     if (value is null) return new TextBlock();
     if (value is string or double or int or long or decimal) return new TextBlock { Text = value.ToString() };
-    if (TryGetItems(value, out var items)) { var panel = new StackPanel(); foreach (var item in items) panel.Children.Add(Render(item, engine)); return panel; }
+    if (TryGetItems(value, out var items))
+    {
+      var panel = new StackPanel();
+      foreach (var item in items) panel.Children.Add(Render(item, engine)); return panel;
+    }
     if (value is not ScriptObject node) return new TextBlock { Text = value.ToString() ?? string.Empty };
-    var type = node.GetProperty("type")?.ToString(); var props = node.GetProperty("props") as ScriptObject; var children = node.GetProperty("children");
+    var type = node.GetProperty("type")?.ToString();
+    var props = node.GetProperty("props") as ScriptObject;
+    var children = node.GetProperty("children");
     if (type == "Window") return RenderWindow(props, children, engine);
     if (type is "View" or "SafeAreaView") return RenderView(props, children, engine);
     if (type == "ScrollView") return RenderScrollView(props, children, engine);
@@ -54,6 +64,7 @@ public static class LayoutRenderer
     if (type == "RadioButton") return RenderRadioButton(props);
     if (type == "DatePicker") return RenderDatePicker(props);
     if (type == "Image") return RenderImage(props);
+    if (type == "Video") return RenderVideo(props);
     if (type == "TextInput") return Equals(Get(props, "secureTextEntry"), true) ? RenderPasswordInput(props) : RenderTextInput(props);
     return new TextBlock { Text = $"Unknown Jupiter component: {type}" };
   }
@@ -117,8 +128,12 @@ public static class LayoutRenderer
     AddChildren(panel, children, engine, orientation, Number(Get(props, "gap"), 0));
     return new ScrollViewer
     {
-      Content = panel, Padding = Thickness(Get(props, "padding")), Margin = Thickness(Get(props, "margin")),
-      Width = Size(Get(props, "width")), Height = Size(Get(props, "height")), HorizontalAlignment = Alignment(Get(props, "alignment")),
+      Content = panel,
+      Padding = Thickness(Get(props, "padding")),
+      Margin = Thickness(Get(props, "margin")),
+      Width = Size(Get(props, "width")),
+      Height = Size(Get(props, "height")),
+      HorizontalAlignment = Alignment(Get(props, "alignment")),
       VerticalScrollBarVisibility = horizontal ? ScrollBarVisibility.Disabled : (Equals(Get(props, "showsVerticalScrollIndicator"), false) ? ScrollBarVisibility.Hidden : ScrollBarVisibility.Auto),
       HorizontalScrollBarVisibility = horizontal ? (Equals(Get(props, "showsHorizontalScrollIndicator"), false) ? ScrollBarVisibility.Hidden : ScrollBarVisibility.Auto) : ScrollBarVisibility.Disabled
     };
@@ -126,23 +141,35 @@ public static class LayoutRenderer
 
   static Border WrapContainer(Panel panel, ScriptObject? props) => new()
   {
-    Child = panel, Padding = Thickness(Get(props, "padding")), Margin = Thickness(Get(props, "margin")),
-    Width = Size(Get(props, "width")), Height = Size(Get(props, "height")), HorizontalAlignment = Alignment(Get(props, "alignment")),
+    Child = panel,
+    Padding = Thickness(Get(props, "padding")),
+    Margin = Thickness(Get(props, "margin")),
+    Width = Size(Get(props, "width")),
+    Height = Size(Get(props, "height")),
+    HorizontalAlignment = Alignment(Get(props, "alignment")),
     Background = Color(Get(props, "backgroundColor"), Brushes.Transparent)
   };
 
   static TextBlock RenderText(ScriptObject? props, object? children) => new()
   {
-    Text = Get(props, "value")?.ToString() ?? TextValue(children), FontSize = Number(Get(props, "fontSize"), 14), FontWeight = FontWeight(Get(props, "fontWeight")),
-    Foreground = Color(Get(props, "color"), Brushes.Black), TextAlignment = TextAlignment(Get(props, "textAlign")), Margin = Thickness(Get(props, "margin"))
+    Text = Get(props, "value")?.ToString() ?? TextValue(children),
+    FontSize = Number(Get(props, "fontSize"), 14),
+    FontWeight = FontWeight(Get(props, "fontWeight")),
+    Foreground = Color(Get(props, "color"), Brushes.Black),
+    TextAlignment = TextAlignment(Get(props, "textAlign")),
+    Margin = Thickness(Get(props, "margin"))
   };
 
   static Button RenderButton(ScriptObject? props, object? children)
   {
     var button = new Button
     {
-      Content = Get(props, "title")?.ToString() ?? TextValue(children), Width = Size(Get(props, "width")), Height = Size(Get(props, "height")),
-      Margin = Thickness(Get(props, "margin")), IsEnabled = !Equals(Get(props, "disabled"), true), Cursor = Cursors.Hand,
+      Content = Get(props, "title")?.ToString() ?? TextValue(children),
+      Width = Size(Get(props, "width")),
+      Height = Size(Get(props, "height")),
+      Margin = Thickness(Get(props, "margin")),
+      IsEnabled = !Equals(Get(props, "disabled"), true),
+      Cursor = Cursors.Hand,
       HorizontalAlignment = Alignment(Get(props, "alignment"))
     };
     if (Get(props, "onPress") is ScriptObject callback) button.Click += (_, _) => { try { callback.Invoke(false); } catch (Exception error) { MessageBox.Show(error.ToString(), "Jupiter event error", MessageBoxButton.OK, MessageBoxImage.Error); } };
@@ -161,8 +188,12 @@ public static class LayoutRenderer
 
   static ProgressBar RenderActivityIndicator(ScriptObject? props) => new()
   {
-    IsIndeterminate = true, IsEnabled = !Equals(Get(props, "animating"), false), Width = IndicatorSize(Get(props, "size")), Height = 20,
-    Foreground = Color(Get(props, "color"), Brushes.DodgerBlue), Margin = Thickness(Get(props, "margin"))
+    IsIndeterminate = true,
+    IsEnabled = !Equals(Get(props, "animating"), false),
+    Width = IndicatorSize(Get(props, "size")),
+    Height = 20,
+    Foreground = Color(Get(props, "color"), Brushes.DodgerBlue),
+    Margin = Thickness(Get(props, "margin"))
   };
 
   static CheckBox RenderSwitch(ScriptObject? props)
@@ -272,7 +303,9 @@ public static class LayoutRenderer
     var fit = Get(props, "objectFit")?.ToString() ?? Get(props, "resizeMode")?.ToString();
     var image = new System.Windows.Controls.Image
     {
-      Width = Size(Get(props, "width")), Height = Size(Get(props, "height")), Margin = Thickness(Get(props, "margin")),
+      Width = Size(Get(props, "width")),
+      Height = Size(Get(props, "height")),
+      Margin = Thickness(Get(props, "margin")),
       Stretch = fit switch { "cover" => Stretch.UniformToFill, "fill" or "stretch" => Stretch.Fill, _ => Stretch.Uniform },
       ToolTip = Get(props, "alt")?.ToString()
     };
@@ -282,7 +315,10 @@ public static class LayoutRenderer
       if (imageUri is not null)
       {
         var bitmap = new BitmapImage();
-        bitmap.BeginInit(); bitmap.UriSource = imageUri; bitmap.CacheOption = BitmapCacheOption.OnLoad; bitmap.EndInit(); bitmap.Freeze();
+        bitmap.BeginInit(); bitmap.UriSource = imageUri;
+        bitmap.CacheOption = BitmapCacheOption.OnLoad;
+        bitmap.EndInit();
+        bitmap.Freeze();
         image.Source = bitmap;
       }
       else throw new FileNotFoundException("Image source was not found.", uri);
@@ -292,6 +328,132 @@ public static class LayoutRenderer
       if (Get(props, "onError") is ScriptObject callback) { try { callback.Invoke(false, error.Message); } catch { } }
     }
     return image;
+  }
+  // Simpan instance LibVLC secara global di class agar tidak dibuat berulang-ulang
+  static LibVLC? _libVLCInstance;
+  static LibVLC GetLibVLC()
+  {
+    if (_libVLCInstance == null)
+    {
+      Core.Initialize();
+      _libVLCInstance = new LibVLC();
+    }
+    return _libVLCInstance;
+  }
+
+  static FrameworkElement RenderVideo(ScriptObject? props)
+  {
+    if (props == null) return new FrameworkElement();
+
+    var key = Get(props, "id")?.ToString() ?? Get(props, "testID")?.ToString();
+    var source = Get(props, "src") ?? Get(props, "source");
+    var uriString = source is ScriptObject sourceObject ? Get(sourceObject, "uri")?.ToString() : source?.ToString();
+
+    double width = Size(Get(props, "width"));
+    double height = Size(Get(props, "height"));
+
+    var libVLC = GetLibVLC();
+    var mediaPlayer = new LibVLCSharp.Shared.MediaPlayer(libVLC)
+    {
+      EnableHardwareDecoding = false
+    };
+
+
+    if (key is not null)
+    {
+      keyedMediaPlayers[key] = mediaPlayer;
+    }
+
+    mediaPlayer.Volume = 100;
+    mediaPlayer.Mute = false;
+    var videoView = new VideoView()
+    {
+      Width = double.IsNaN(width) ? 300 : width,
+      Height = double.IsNaN(height) ? 200 : height,
+      Margin = Thickness(Get(props, "margin")),
+      MediaPlayer = mediaPlayer
+    };
+
+    try
+    {
+      if (!string.IsNullOrEmpty(uriString))
+      {
+        Uri? mediaUri = null;
+
+        // 1. Tangani Shared Folder (UNC Path seperti \\server\folder\file.mp4) atau Absolute Path
+        if (uriString.StartsWith(@"\\") || uriString.StartsWith("//"))
+        {
+          // Konversi UNC path menjadi format Uri jaringan (file://...)
+          mediaUri = new Uri(uriString.Replace("\\", "/"));
+        }
+        else
+        {
+          // Coba resolusi file lokal / relatif terlebih dahulu
+          mediaUri = ResolveImageUri(uriString);
+        }
+
+        // 2. Jika bukan file lokal/shared folder (misal: Link YouTube atau URL HTTP biasa), gunakan Uri langsung
+        if (mediaUri == null)
+        {
+          Uri.TryCreate(uriString, UriKind.Absolute, out mediaUri);
+        }
+
+        videoView.Loaded += (_, _) =>
+        {
+          Task.Run(() =>
+                {
+                  try
+                  {
+                    // Jika ini adalah URL YouTube atau web stream, LibVLC menangani string URL langsung via Media
+                    using var media = mediaUri != null && mediaUri.IsFile
+                              ? new Media(libVLC, mediaUri)
+                              : new Media(libVLC, uriString, FromType.FromLocation);
+
+                    mediaPlayer.Media = media;
+
+                    if (Equals(Get(props, "autoPlay"), true) || Equals(Get(props, "autoplay"), true))
+                    {
+                      mediaPlayer.Play();
+                    }
+                  }
+                  catch (Exception ex)
+                  {
+                    Application.Current.Dispatcher.Invoke(() =>
+                          {
+                            MessageBox.Show($"LibVLC Play Error: {ex.Message}", "Jupiter Video Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                          });
+                  }
+                });
+        };
+
+        if (Get(props, "onProgress") is ScriptObject progressCallback)
+        {
+          mediaPlayer.TimeChanged += (_, e) =>
+          {
+            Application.Current.Dispatcher.Invoke(() =>
+                    {
+                      try { progressCallback.Invoke(false, e.Time, mediaPlayer.Length); } catch { }
+                    });
+          };
+        }
+
+        videoView.Unloaded += (_, _) =>
+        {
+          if (key is not null) keyedMediaPlayers.Remove(key);
+          mediaPlayer.Stop();
+          mediaPlayer.Dispose();
+        };
+      }
+    }
+    catch (Exception error)
+    {
+      if (Get(props, "onError") is ScriptObject callback)
+      {
+        try { callback.Invoke(false, error.Message); } catch { }
+      }
+    }
+
+    return videoView;
   }
 
   static Uri? ResolveImageUri(string? source)

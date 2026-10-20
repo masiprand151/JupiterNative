@@ -5,6 +5,7 @@ export { createElement } from "./element";
 export { jsx, jsxs, Fragment } from "./element";
 export { useState } from "./state";
 export { useEffect } from "./state";
+export { ErrorBoundary } from "./errorBoundary";
 export { navigate, goBack, replace, NavigationContainer } from "./navigation";
 export const desktop = {
   window: {
@@ -61,7 +62,27 @@ export const desktop = {
 };
 
 function getNativeDesktop() {
-  const native = (globalThis as unknown as { NativeDesktop?: { MinimizeWindow(): void; ToggleMaximizeWindow(): void; RestoreWindow(): void; ToggleFullscreen(): void; ToggleAlwaysOnTop(): boolean; CloseWindow(): void; SetWindowTitle(title: string): void; SetClipboardText(text: string): void; GetClipboardText(): string; OpenFile(filter: string): string; SaveFile(defaultFileName: string, filter: string): string; ReadTextFile(path: string): string; WriteTextFile(path: string, content: string): void; OpenUrl(url: string): void; ShowMessage(message: string, title: string): void } }).NativeDesktop;
+  const native = (
+    globalThis as unknown as {
+      NativeDesktop?: {
+        MinimizeWindow(): void;
+        ToggleMaximizeWindow(): void;
+        RestoreWindow(): void;
+        ToggleFullscreen(): void;
+        ToggleAlwaysOnTop(): boolean;
+        CloseWindow(): void;
+        SetWindowTitle(title: string): void;
+        SetClipboardText(text: string): void;
+        GetClipboardText(): string;
+        OpenFile(filter: string): string;
+        SaveFile(defaultFileName: string, filter: string): string;
+        ReadTextFile(path: string): string;
+        WriteTextFile(path: string, content: string): void;
+        OpenUrl(url: string): void;
+        ShowMessage(message: string, title: string): void;
+      };
+    }
+  ).NativeDesktop;
   if (!native) throw new Error("Jupiter NativeDesktop is unavailable.");
   return native;
 }
@@ -86,8 +107,17 @@ export function start(app: () => Child, options?: WindowOptions) {
 export function FlatList<T>(props: FlatListProps<T>): Child {
   return props.data.map((item, index) => {
     const child = props.renderItem({ item, index });
-    if (!props.keyExtractor || typeof child !== 'object' || child === null || Array.isArray(child)) return child;
-    return { ...(child as object), key: props.keyExtractor(item, index) } as Child;
+    if (
+      !props.keyExtractor ||
+      typeof child !== "object" ||
+      child === null ||
+      Array.isArray(child)
+    )
+      return child;
+    return {
+      ...(child as object),
+      key: props.keyExtractor(item, index),
+    } as Child;
   });
 }
 export const StyleSheet = {
@@ -96,6 +126,7 @@ export const StyleSheet = {
   },
 };
 export const Window = "Window" as const;
+export const ErrorBoundaryComponent = "ErrorBoundary" as const;
 export const View = "View" as const;
 export const SafeAreaView = "SafeAreaView" as const;
 export const Text = "Text" as const;
@@ -113,3 +144,4 @@ export const DatePicker = "DatePicker" as const;
 export const Image = "Image" as const;
 export const TextInput = "TextInput" as const;
 export const ScrollView = "ScrollView" as const;
+export const Video = "Video" as const;

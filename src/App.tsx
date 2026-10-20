@@ -1,5 +1,5 @@
 import { NavigationContainer, Window } from "@jupiter/core";
-import HomeScreen, { ProfileScreen } from "./screens/HomeScreen";
+import HomeScreen from "./screens/HomeScreen";
 
 export default function App() {
   return (
@@ -8,7 +8,6 @@ export default function App() {
         initialRouteName="Home"
         screens={{
           Home: HomeScreen,
-          Profile: ProfileScreen,
         }}
       />
     </Window>
