@@ -5,7 +5,9 @@ const cp = require("child_process");
 const root = path.resolve(__dirname, "..");
 const runtime = path.join(root, "runtime");
 function projectConfig() {
-  const packageJson = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+  const packageJson = JSON.parse(
+    fs.readFileSync(path.join(root, "package.json"), "utf8"),
+  );
   const configPath = path.join(root, "jupiter.config.json");
   const config = fs.existsSync(configPath)
     ? JSON.parse(fs.readFileSync(configPath, "utf8"))
@@ -76,7 +78,8 @@ function build() {
   for (const directory of ["assets", "docs"]) {
     const source = path.join(root, directory);
     const destination = path.join(root, "dist", directory);
-    if (fs.existsSync(source)) fs.cpSync(source, destination, { recursive: true, force: true });
+    if (fs.existsSync(source))
+      fs.cpSync(source, destination, { recursive: true, force: true });
   }
   const exe = path.join(root, "dist", `${appName}.exe`);
   if (!fs.existsSync(exe))
@@ -90,18 +93,15 @@ function dev() {
     runtime,
     "bin",
     "Release",
-    "net8.0-windows",
+    "net10.0-windows",
     "win-x64",
     "Jupiter.dll",
   );
-  const child = cp.spawn(
-    "dotnet",
-    [
-      "exec",
-      developmentAssembly,
-    ],
-    { cwd: root, stdio: "inherit", windowsHide: false },
-  );
+  const child = cp.spawn("dotnet", ["exec", developmentAssembly], {
+    cwd: root,
+    stdio: "inherit",
+    windowsHide: false,
+  });
   child.on("error", (error) => {
     console.error(
       `Could not start Jupiter development preview: ${error.message}`,
