@@ -21,7 +21,8 @@ public sealed class AppWindow : Window
     Width = 0;
     Height = 0;
     Content = root;
-    runtime = new ClearScriptRuntime(this, root);
+    Console.Write(AppContext.BaseDirectory);
+    runtime = new ClearScriptRuntime(this, root, Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "App.js"));
     Loaded += (_, _) => runtime.Start();
     Closed += (_, _) => runtime.Dispose();
   }

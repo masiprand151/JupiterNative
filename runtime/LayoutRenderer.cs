@@ -69,42 +69,188 @@ public static class LayoutRenderer
     return new TextBlock { Text = $"Unknown Jupiter component: {type}" };
   }
 
+  static string GetLayoutValue(ScriptObject? props, string name, string fallback)
+  {
+    return Get(props, name)?.ToString() ?? fallback;
+  }
+
+  // static UIElement RenderView(ScriptObject? props, object? children, V8ScriptEngine engine)
+  // {
+  //   var directionValue = Get(props, "direction")?.ToString();
+  //   var direction = directionValue is "horizontal" or "row" ? Orientation.Horizontal : Orientation.Vertical;
+
+  //   var justifyContent = GetLayoutValue(
+  //          props,
+  //          "justifyContent",
+  //          "start"
+  //      );
+
+  //   var alignItems = GetLayoutValue(
+  //       props,
+  //       "alignItems",
+  //       "stretch"
+  //   );
+
+
+  //   var childValues = ChildValues(children);
+  //   if (childValues.Any(IsModalNode))
+  //   {
+  //     var layers = new Grid();
+  //     var contentChildren = childValues.Where(child => !IsModalNode(child)).ToList();
+  //     var contentPanel = new StackPanel { Orientation = direction };
+  //     AddChildren(contentPanel, contentChildren, engine, direction, Number(Get(props, "gap"), 0));
+  //     layers.Children.Add(contentPanel);
+  //     foreach (var child in childValues.Where(IsModalNode))
+  //     {
+  //       var element = Render(child, engine);
+  //       Grid.SetRow(element, 0);
+  //       layers.Children.Add(element);
+  //     }
+  //     return WrapContainer(layers, props);
+  //   }
+  //   if (direction == Orientation.Vertical && childValues.Any(IsScrollViewNode))
+  //   {
+  //     var grid = new Grid();
+  //     foreach (var child in childValues)
+  //     {
+  //       var element = Render(child, engine);
+  //       grid.RowDefinitions.Add(new RowDefinition { Height = element is ScrollViewer ? new GridLength(1, GridUnitType.Star) : GridLength.Auto });
+  //       Grid.SetRow(element, grid.RowDefinitions.Count - 1);
+  //       grid.Children.Add(element);
+  //     }
+  //     return WrapContainer(grid, props);
+  //   }
+  //   var panel = new StackPanel { Orientation = direction };
+  //   AddChildren(panel, children, engine, direction, Number(Get(props, "gap"), 0));
+  //   return WrapContainer(panel, props);
+  // }
+
+
   static UIElement RenderView(ScriptObject? props, object? children, V8ScriptEngine engine)
   {
     var directionValue = Get(props, "direction")?.ToString();
-    var direction = directionValue is "horizontal" or "row" ? Orientation.Horizontal : Orientation.Vertical;
+    var direction = directionValue is "horizontal" or "row"
+        ? Orientation.Horizontal
+        : Orientation.Vertical;
+
+    var justifyContent = GetLayoutValue(props, "justifyContent", "start");
+    var alignItems = GetLayoutValue(props, "alignItems", "stretch");
+    var gap = Number(Get(props, "gap"), 0);
+
     var childValues = ChildValues(children);
+
+    // Mengatur alignment tanpa mengubah AddChildren atau WrapContainer.
+    void ApplyAlignment(StackPanel panel)
+    {
+      // Posisi kelompok children pada sumbu utama.
+      if (direction == Orientation.Horizontal)
+      {
+        panel.HorizontalAlignment = justifyContent switch
+        {
+          "center" => HorizontalAlignment.Center,
+          "end" => HorizontalAlignment.Right,
+          _ => HorizontalAlignment.Stretch
+        };
+      }
+      else
+      {
+        panel.VerticalAlignment = justifyContent switch
+        {
+          "center" => VerticalAlignment.Center,
+          "end" => VerticalAlignment.Bottom,
+          _ => VerticalAlignment.Stretch
+        };
+      }
+
+      // Posisi setiap child pada sumbu silang.
+      foreach (UIElement child in panel.Children)
+      {
+        if (child is not FrameworkElement element)
+          continue;
+
+        if (direction == Orientation.Horizontal)
+        {
+          element.VerticalAlignment = alignItems switch
+          {
+            "start" => VerticalAlignment.Top,
+            "center" => VerticalAlignment.Center,
+            "end" => VerticalAlignment.Bottom,
+            _ => VerticalAlignment.Stretch
+          };
+        }
+        else
+        {
+          element.HorizontalAlignment = alignItems switch
+          {
+            "start" => HorizontalAlignment.Left,
+            "center" => HorizontalAlignment.Center,
+            "end" => HorizontalAlignment.Right,
+            _ => HorizontalAlignment.Stretch
+          };
+        }
+      }
+    }
+
     if (childValues.Any(IsModalNode))
     {
       var layers = new Grid();
-      var contentChildren = childValues.Where(child => !IsModalNode(child)).ToList();
-      var contentPanel = new StackPanel { Orientation = direction };
-      AddChildren(contentPanel, contentChildren, engine, direction, Number(Get(props, "gap"), 0));
+
+      var contentChildren = childValues
+          .Where(child => !IsModalNode(child))
+          .ToList();
+
+      var contentPanel = new StackPanel
+      {
+        Orientation = direction
+      };
+
+      AddChildren(contentPanel, contentChildren, engine, direction, gap);
+      ApplyAlignment(contentPanel);
       layers.Children.Add(contentPanel);
+
       foreach (var child in childValues.Where(IsModalNode))
       {
         var element = Render(child, engine);
         Grid.SetRow(element, 0);
         layers.Children.Add(element);
       }
+
       return WrapContainer(layers, props);
     }
+
     if (direction == Orientation.Vertical && childValues.Any(IsScrollViewNode))
     {
       var grid = new Grid();
+
       foreach (var child in childValues)
       {
         var element = Render(child, engine);
-        grid.RowDefinitions.Add(new RowDefinition { Height = element is ScrollViewer ? new GridLength(1, GridUnitType.Star) : GridLength.Auto });
+
+        grid.RowDefinitions.Add(new RowDefinition
+        {
+          Height = element is ScrollViewer
+                ? new GridLength(1, GridUnitType.Star)
+                : GridLength.Auto
+        });
+
         Grid.SetRow(element, grid.RowDefinitions.Count - 1);
         grid.Children.Add(element);
       }
+
       return WrapContainer(grid, props);
     }
-    var panel = new StackPanel { Orientation = direction };
-    AddChildren(panel, children, engine, direction, Number(Get(props, "gap"), 0));
+
+    var panel = new StackPanel
+    {
+      Orientation = direction
+    };
+
+    AddChildren(panel, children, engine, direction, gap);
+    ApplyAlignment(panel);
+
     return WrapContainer(panel, props);
   }
+
 
   static UIElement RenderWindow(ScriptObject? props, object? children, V8ScriptEngine engine)
   {
@@ -575,4 +721,30 @@ public static class LayoutRenderer
   static System.Windows.TextAlignment TextAlignment(object? value) => value?.ToString() switch { "center" => System.Windows.TextAlignment.Center, "right" => System.Windows.TextAlignment.Right, "justify" => System.Windows.TextAlignment.Justify, _ => System.Windows.TextAlignment.Left };
   static Brush Color(object? value, Brush fallback) { if (value is null) return fallback; try { return (Brush)new BrushConverter().ConvertFromString(value.ToString()!)!; } catch { return fallback; } }
   static string TextValue(object? value) { if (TryGetItems(value, out var items)) return string.Concat(items.Select(TextValue)); return value?.ToString() ?? string.Empty; }
+
+  static HorizontalAlignment GetHorizontalAlignment(
+    ScriptObject? props)
+  {
+    return Get(props, "alignItems")?.ToString() switch
+    {
+      "start" => HorizontalAlignment.Left,
+      "center" => HorizontalAlignment.Center,
+      "end" => HorizontalAlignment.Right,
+      "stretch" => HorizontalAlignment.Stretch,
+      _ => HorizontalAlignment.Stretch
+    };
+  }
+
+  static VerticalAlignment GetVerticalAlignment(
+      ScriptObject? props)
+  {
+    return Get(props, "alignItems")?.ToString() switch
+    {
+      "start" => VerticalAlignment.Top,
+      "center" => VerticalAlignment.Center,
+      "end" => VerticalAlignment.Bottom,
+      "stretch" => VerticalAlignment.Stretch,
+      _ => VerticalAlignment.Stretch
+    };
+  }
 }
