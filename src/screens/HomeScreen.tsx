@@ -4,6 +4,7 @@ import {
   SafeAreaView,
   Text,
   View,
+  useEffect,
   useState,
 } from "@jupiter/core";
 
