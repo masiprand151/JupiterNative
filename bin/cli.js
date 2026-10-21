@@ -81,7 +81,7 @@ function bundleArgs(watch = false) {
 }
 
 function copyRuntimeAssets() {
-  for (const directory of ["assets", "docs"]) {
+  for (const directory of ["assets"]) {
     const source = path.join(root, directory);
     const destination = path.join(root, "dist", directory);
 
@@ -101,6 +101,8 @@ function build() {
 
   // Build JavaScript bundle.
   run(process.execPath, bundleArgs());
+
+  cp.exec("rm -rf ./dist");
 
   // Publish the production application.
   run(
