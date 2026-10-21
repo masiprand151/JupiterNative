@@ -21,10 +21,22 @@ public sealed class AppWindow : Window
     Width = 0;
     Height = 0;
     Content = root;
-    Console.Write(AppContext.BaseDirectory);
-    runtime = new ClearScriptRuntime(this, root, Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "App.js"));
+    runtime = new ClearScriptRuntime(this, root, GetJSNative());
     Loaded += (_, _) => runtime.Start();
     Closed += (_, _) => runtime.Dispose();
+
+  }
+
+  public static string GetJSNative()
+  {
+    return Path.GetFullPath(
+        Path.Combine(
+            AppContext.BaseDirectory,
+            "..", "..", "..", "..",
+            "App.js"
+        )
+    );
+
   }
 
   public void ApplyOptions(string optionsJson)
@@ -123,6 +135,7 @@ public sealed class AppWindow : Window
       MessageBox.Show("SVG icons are not supported by WPF directly. Use PNG, JPG, or ICO instead.", "Jupiter icon warning", MessageBoxButton.OK, MessageBoxImage.Warning);
       return CreateDefaultIcon();
     }
+
 
     var path = ResolveIconPath(iconPath);
     if (path is null && iconPath.Replace('\\', '/').Equals("assets/jn.png", StringComparison.OrdinalIgnoreCase))

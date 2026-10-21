@@ -221,6 +221,81 @@ export interface FlatListProps<T = unknown> extends CommonProps {
   keyExtractor?: (item: T, index: number) => string;
   horizontal?: boolean;
 }
+
+export type TableRow = Record<string, unknown>;
+
+export interface TableColumn<T extends TableRow = TableRow> {
+  /**
+   * Key properti pada setiap objek data.
+   */
+  key: keyof T & string;
+
+  /**
+   * Judul kolom yang ditampilkan.
+   */
+  title: string;
+
+  /**
+   * Lebar kolom dalam pixel.
+   */
+  width?: number;
+
+  /**
+   * Apakah kolom ditampilkan.
+   * Default: true
+   */
+  visible?: boolean;
+
+  /**
+   * Perataan teks dalam kolom.
+   */
+  align?: "left" | "center" | "right";
+}
+
+export interface TableProps<T extends TableRow = TableRow> {
+  /**
+   * Data baris yang ditampilkan.
+   */
+  data: T[];
+
+  /**
+   * Konfigurasi kolom tabel.
+   */
+  columns: TableColumn<T>[];
+
+  /**
+   * Jumlah baris per halaman.
+   * Default: 50
+   */
+  pageSize?: number;
+
+  /**
+   * Mengaktifkan fitur pencarian.
+   * Default: false
+   */
+  searchable?: boolean;
+
+  /**
+   * Pesan ketika data kosong.
+   */
+  emptyText?: string;
+
+  /**
+   * Menampilkan indikator loading.
+   */
+  loading?: boolean;
+
+  /**
+   * Mengizinkan pemilihan baris.
+   */
+  selectable?: boolean;
+
+  /**
+   * Callback ketika baris dipilih.
+   */
+  onRowSelect?: (row: T) => void;
+}
+
 export type NavigationParams = Record<string, unknown>;
 export interface NavigationRoute {
   name: string;
@@ -264,6 +339,7 @@ declare global {
       ScrollView: ScrollViewProps;
       FlatList: FlatListProps;
       Video: VideoProps;
+      Table: TableProps;
     }
   }
 }

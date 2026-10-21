@@ -74,57 +74,6 @@ public static class LayoutRenderer
     return Get(props, name)?.ToString() ?? fallback;
   }
 
-  // static UIElement RenderView(ScriptObject? props, object? children, V8ScriptEngine engine)
-  // {
-  //   var directionValue = Get(props, "direction")?.ToString();
-  //   var direction = directionValue is "horizontal" or "row" ? Orientation.Horizontal : Orientation.Vertical;
-
-  //   var justifyContent = GetLayoutValue(
-  //          props,
-  //          "justifyContent",
-  //          "start"
-  //      );
-
-  //   var alignItems = GetLayoutValue(
-  //       props,
-  //       "alignItems",
-  //       "stretch"
-  //   );
-
-
-  //   var childValues = ChildValues(children);
-  //   if (childValues.Any(IsModalNode))
-  //   {
-  //     var layers = new Grid();
-  //     var contentChildren = childValues.Where(child => !IsModalNode(child)).ToList();
-  //     var contentPanel = new StackPanel { Orientation = direction };
-  //     AddChildren(contentPanel, contentChildren, engine, direction, Number(Get(props, "gap"), 0));
-  //     layers.Children.Add(contentPanel);
-  //     foreach (var child in childValues.Where(IsModalNode))
-  //     {
-  //       var element = Render(child, engine);
-  //       Grid.SetRow(element, 0);
-  //       layers.Children.Add(element);
-  //     }
-  //     return WrapContainer(layers, props);
-  //   }
-  //   if (direction == Orientation.Vertical && childValues.Any(IsScrollViewNode))
-  //   {
-  //     var grid = new Grid();
-  //     foreach (var child in childValues)
-  //     {
-  //       var element = Render(child, engine);
-  //       grid.RowDefinitions.Add(new RowDefinition { Height = element is ScrollViewer ? new GridLength(1, GridUnitType.Star) : GridLength.Auto });
-  //       Grid.SetRow(element, grid.RowDefinitions.Count - 1);
-  //       grid.Children.Add(element);
-  //     }
-  //     return WrapContainer(grid, props);
-  //   }
-  //   var panel = new StackPanel { Orientation = direction };
-  //   AddChildren(panel, children, engine, direction, Number(Get(props, "gap"), 0));
-  //   return WrapContainer(panel, props);
-  // }
-
 
   static UIElement RenderView(ScriptObject? props, object? children, V8ScriptEngine engine)
   {

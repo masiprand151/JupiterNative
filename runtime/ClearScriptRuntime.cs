@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using System.Threading;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.ClearScript;
@@ -11,40 +12,40 @@ namespace Jupiter.Runtime;
 
 public sealed class ClearScriptRuntime : IDisposable
 {
-  readonly NativeBridge bridge;
-  readonly AppWindow window;
-  readonly Panel root;
-  readonly V8ScriptEngine engine;
+    readonly NativeBridge bridge;
+    readonly AppWindow window;
+    readonly Panel root;
+    readonly V8ScriptEngine engine;
 
-  FileSystemWatcher? watcher;
-  Timer? reloadTimer;
-  bool isReloading;
-  bool disposed;
+    FileSystemWatcher? watcher;
+    Timer? reloadTimer;
+    bool isReloading;
+    bool disposed;
 
-  readonly string appPath;
+    readonly string appPath;
 
-  public ClearScriptRuntime(
-      AppWindow window,
-      Panel root,
-      string appPath)
-  {
-    this.window = window;
-    this.root = root;
-    this.appPath = Path.GetFullPath(appPath);
+    public ClearScriptRuntime(
+        AppWindow window,
+        Panel root,
+        string appPath)
+    {
+        this.window = window;
+        this.root = root;
+        this.appPath = Path.GetFullPath(appPath);
 
-    // Aktifkan konversi Task .NET menjadi Promise JavaScript.
-    engine = new V8ScriptEngine(
-        V8ScriptEngineFlags.EnableTaskPromiseConversion
-    );
+        // Aktifkan konversi Task .NET menjadi Promise JavaScript.
+        engine = new V8ScriptEngine(
+            V8ScriptEngineFlags.EnableTaskPromiseConversion
+        );
 
-    bridge = new NativeBridge(window, root, engine);
+        bridge = new NativeBridge(window, root, engine);
 
-    engine.AddHostObject("NativeDesktop", new NativeDesktop(window));
-    engine.AddHostObject("NativeBridge", bridge);
-    engine.AddHostObject("JupiterConsole", new NativeConsole());
-    engine.AddHostObject("NativeFetch", new NativeFetch());
+        engine.AddHostObject("NativeDesktop", new NativeDesktop(window));
+        engine.AddHostObject("NativeBridge", bridge);
+        engine.AddHostObject("JupiterConsole", new NativeConsole());
+        engine.AddHostObject("NativeFetch", new NativeFetch());
 
-    engine.Execute("""
+        engine.Execute("""
             // ==========================================
             // CONSOLE
             // ==========================================
@@ -232,113 +233,133 @@ public sealed class ClearScriptRuntime : IDisposable
                 };
             };
             """);
-  }
-
-  public void Start()
-  {
-    LoadApp();
-    EnableLiveReload();
-  }
-
-  void LoadApp()
-  {
-    if (disposed || isReloading)
-      return;
-
-    isReloading = true;
-
-    try
-    {
-      root.Dispatcher.Invoke(() => root.Children.Clear());
-
-      var source = File.ReadAllText(appPath);
-      engine.Execute(appPath, source);
-
-      Console.WriteLine(
-          "Jupiter app loaded: " + DateTime.Now
-      );
     }
-    catch (Exception error)
+
+    public void Start()
     {
-      MessageBox.Show(
-          error.ToString(),
-          "Jupiter runtime error",
-          MessageBoxButton.OK,
-          MessageBoxImage.Error
-      );
+        LoadApp();
+        EnableLiveReload();
     }
-    finally
+
+    private string LoadAppSource()
     {
-      isReloading = false;
+#if DEBUG
+        // Development: App.js eksternal agar live reload tetap berfungsi.
+        return File.ReadAllText(appPath);
+#else
+    // Production: App.js dibaca dari embedded resource.
+    using var stream =
+        Assembly.GetExecutingAssembly()
+            .GetManifestResourceStream("Jupiter.App.js")
+        ?? throw new FileNotFoundException(
+            "Embedded resource Jupiter.App.js tidak ditemukan."
+        );
+
+    using var reader = new StreamReader(stream);
+    return reader.ReadToEnd();
+#endif
     }
-  }
 
-  public void EnableLiveReload()
-  {
-    if (watcher != null)
-      return;
-
-    var directory = Path.GetDirectoryName(appPath)!;
-    var filename = Path.GetFileName(appPath);
-
-    watcher = new FileSystemWatcher(directory, filename)
+    void LoadApp()
     {
-      NotifyFilter =
-            NotifyFilters.LastWrite |
-            NotifyFilters.Size |
-            NotifyFilters.FileName,
-
-      EnableRaisingEvents = true
-    };
-
-    watcher.Changed += OnFileChanged;
-    watcher.Created += OnFileChanged;
-    watcher.Renamed += OnFileRenamed;
-  }
-
-  void OnFileChanged(object sender, FileSystemEventArgs e)
-  {
-    reloadTimer?.Dispose();
-
-    reloadTimer = new Timer(
-        _ =>
-        {
-          if (disposed)
+        if (disposed || isReloading)
             return;
 
-          try
-          {
-            window.Dispatcher.BeginInvoke(() =>
+        isReloading = true;
+
+        try
+        {
+            root.Dispatcher.Invoke(() => root.Children.Clear());
+
+            // var source = File.ReadAllText(appPath);
+            var source = LoadAppSource();
+            engine.Execute(appPath, source);
+
+            Console.WriteLine(
+                "Jupiter app loaded: " + DateTime.Now
+            );
+        }
+        catch (Exception error)
+        {
+            MessageBox.Show(
+                error.ToString(),
+                "Jupiter runtime error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error
+            );
+        }
+        finally
+        {
+            isReloading = false;
+        }
+    }
+
+    public void EnableLiveReload()
+    {
+        if (watcher != null)
+            return;
+
+        var directory = Path.GetDirectoryName(appPath)!;
+        var filename = Path.GetFileName(appPath);
+
+        watcher = new FileSystemWatcher(directory, filename)
+        {
+            NotifyFilter =
+                NotifyFilters.LastWrite |
+                NotifyFilters.Size |
+                NotifyFilters.FileName,
+
+            EnableRaisingEvents = true
+        };
+
+        watcher.Changed += OnFileChanged;
+        watcher.Created += OnFileChanged;
+        watcher.Renamed += OnFileRenamed;
+    }
+
+    void OnFileChanged(object sender, FileSystemEventArgs e)
+    {
+        reloadTimer?.Dispose();
+
+        reloadTimer = new Timer(
+            _ =>
+            {
+                if (disposed)
+                    return;
+
+                try
                 {
-                  if (!disposed)
-                    LoadApp();
-                });
-          }
-          catch (ObjectDisposedException)
-          {
-            // Window sudah ditutup.
-          }
-        },
-        null,
-        300,
-        Timeout.Infinite
-    );
-  }
+                    window.Dispatcher.BeginInvoke(() =>
+                    {
+                        if (!disposed)
+                            LoadApp();
+                    });
+                }
+                catch (ObjectDisposedException)
+                {
+                    // Window sudah ditutup.
+                }
+            },
+            null,
+            300,
+            Timeout.Infinite
+        );
+    }
 
-  void OnFileRenamed(object sender, RenamedEventArgs e)
-  {
-    OnFileChanged(sender, e);
-  }
+    void OnFileRenamed(object sender, RenamedEventArgs e)
+    {
+        OnFileChanged(sender, e);
+    }
 
-  public void Dispose()
-  {
-    if (disposed)
-      return;
+    public void Dispose()
+    {
+        if (disposed)
+            return;
 
-    disposed = true;
+        disposed = true;
 
-    watcher?.Dispose();
-    reloadTimer?.Dispose();
-    engine.Dispose();
-  }
+        watcher?.Dispose();
+        reloadTimer?.Dispose();
+        engine.Dispose();
+    }
 }
